@@ -6,7 +6,7 @@ import { DataLocation } from "@ethsign/sign-protocol-evm/src/models/DataLocation
 
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { ShoppingStatus, VotesType, PurchaseDetails, CommentDetails } from "./utils.sol";
+import { ShoppingStatus, VotesType, PurchaseDetails, CommentDetails, BuyEvent, DeliveredEvent, CommentEvent, VoteEvent } from "./utils.sol";
 
 //SCHEMAS
 //32 data":[{"name":"buyerAddress","type":"address"},{"name":"transactionIndex","type":"uint256"}]}
@@ -18,22 +18,23 @@ contract Product is Ownable {
 	uint64 public schemaId_Comment;
 
 	using SafeMath for uint256;
-    using SafeMath for uint64;
+	using SafeMath for uint64;
 
 	uint256 public totalAvailableStoke;
 
-	uint256 pricePerOne;
-	uint256 discount;
+	uint256 public pricePerOne;
+	uint256 public discount;
 
-	uint64 upVotes;
-	uint64 downVotes;
+	uint64 public upVotes;
+	uint64 public downVotes;
 
-	uint64 trxIndex;
+	uint64 public trxIndex;
 
-	uint256 totalPurchases;
+	uint256 public totalPurchases;
 
-	string productName;
-	string StoreName;
+	string public productName;
+	string public StoreName;
+	string public productImageUrl;
 
 	//customer can only place a single order at a time
 
@@ -50,23 +51,15 @@ contract Product is Ownable {
 		uint256 _pricePerOne,
 		uint256 _totalAvailableStoke,
 		string memory _productName,
-		string memory _storeName
+		string memory _storeName,
+		string memory _productImageUrl
 	) Ownable() {
 		pricePerOne = _pricePerOne;
 		totalAvailableStoke = _totalAvailableStoke;
 		productName = _productName;
 		StoreName = _storeName;
+		productImageUrl = _productImageUrl;
 	}
-
-	event BuyEvent(
-		address indexed buyer,
-		uint256 price,
-		uint256 quantity,
-		uint256 indexed index
-	);
-	event DeliveredEvent(address indexed buyer, uint64 indexed attestionId);
-	event CommentEvent(address indexed buyer, uint64 attestationId);
-	event VoteEvent(address buyer, VotesType typeOFVote);
 
 	function buy(uint256 quantity) public payable {
 		require(
