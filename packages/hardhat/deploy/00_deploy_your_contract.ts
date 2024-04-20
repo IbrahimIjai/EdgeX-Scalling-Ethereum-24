@@ -31,10 +31,16 @@ const deployYourContract: DeployFunction = async function (hre: HardhatRuntimeEn
     // automatically mining the contract deployment transaction. There is no effect on live networks.
     autoMine: true,
   });
-  await deploy("ActuallyMetIRL", {
+
+  const price = 100000000000000;
+  const storename = "Iphone store";
+  const totalAvailableStoke = 10000;
+  const productName = "Iphone 12";
+
+  await deploy("Product", {
     from: deployer,
     // Contract constructor arguments
-    // args: [deployer],
+    args: [price, totalAvailableStoke, storename, productName],
     log: true,
     // autoMine: can be passed to the deploy function to make the deployment process faster on local networks by
     // automatically mining the contract deployment transaction. There is no effect on live networks.

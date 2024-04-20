@@ -1,17 +1,39 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-import { ShoppingStatus, VotesType, PurchaseDetails } from "./utils.sol";
+import { ISP } from "@ethsign/sign-protocol-evm/src/interfaces/ISP.sol";
+import { Attestation } from "@ethsign/sign-protocol-evm/src/models/Attestation.sol";
+import { DataLocation } from "@ethsign/sign-protocol-evm/src/models/DataLocation.sol";
 
-contract Product {
+import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { ShoppingStatus, VotesType, PurchaseDetails, CommentDetails } from "./utils.sol";
+
+//SCHEMAS
+//32 data":[{"name":"buyerAddress","type":"address"},{"name":"transactionIndex","type":"uint256"}]}
+//33 data":[{"name":"comment","type":"string"}]}
+
+contract Product is Ownable {
+	ISP public spInstance;
+	uint64 public schemaId_Invoice;
+	uint64 public schemaId_Comment;
+
+	using SafeMath for uint256;
+    using SafeMath for uint64;
+
 	uint256 public totalAvailableStoke;
-	string public productName;
+
 	uint256 pricePerOne;
 	uint256 discount;
 
-	uint256 upVotes;
-	uint256 downVotes;
+	uint64 upVotes;
+	uint64 downVotes;
+
+	uint64 trxIndex;
 
 	uint256 totalPurchases;
+
+	string productName;
+	string StoreName;
 
 	//customer can only place a single order at a time
 
@@ -21,51 +43,163 @@ contract Product {
 
 	//keep customer vote type
 	mapping(address customer => VotesType) customerVote;
+	//keep customer Coment
+	mapping(address customer => CommentDetails) buyerCommented;
 
-	constructor() {}
-// https://github.com/IbrahimIjai/EdgeX-Scalling-Ethereum-24
-// EdgeX-Scalling-Ethereum-24
-	function buy(uint64 quantity) {
-        require()
-		//require shopping status to not be awaiting delivery
-		//calc price
-		//collect deposit
-		//set customer history
-		//Increase index by 1.
-		// set that index to the curresponding quantity
-		//admin attestation that bought is successful
-		//emit event
+	constructor(
+		uint256 _pricePerOne,
+		uint256 _totalAvailableStoke,
+		string memory _productName,
+		string memory _storeName
+	) Ownable() {
+		pricePerOne = _pricePerOne;
+		totalAvailableStoke = _totalAvailableStoke;
+		productName = _productName;
+		StoreName = _storeName;
 	}
 
-	function deliver() {
-		//Admin now make an attestation of having actually bought and recieved
-		//attestation- current time, total value of goods, history index
+	event BuyEvent(
+		address indexed buyer,
+		uint256 price,
+		uint256 quantity,
+		uint256 indexed index
+	);
+	event DeliveredEvent(address indexed buyer, uint64 indexed attestionId);
+	event CommentEvent(address indexed buyer, uint64 attestationId);
+	event VoteEvent(address buyer, VotesType typeOFVote);
+
+	function buy(uint256 quantity) public payable {
+		require(
+			customerCurShoppingStatus[msg.sender] ==
+				ShoppingStatus.AWAITINGDELIVERY,
+			"You can't place an order while awaiting delivery"
+		);
+		require(totalAvailableStoke >= quantity, "Insufficient stock!");
+
+		uint256 price = quantity.mul(pricePerOne);
+
+		require(msg.value >= pricePerOne, "Insufficient payment sent!");
+		trxIndex++;
+		totalAvailableStoke = totalAvailableStoke.sub(quantity);
+		customerHistory[msg.sender][trxIndex] = PurchaseDetails(
+			block.timestamp,
+			0,
+			quantity,
+			pricePerOne
+		);
+
+		customerCurShoppingStatus[msg.sender] = ShoppingStatus.AWAITINGDELIVERY;
+		emit BuyEvent(msg.sender, price, quantity, trxIndex);
 	}
 
-	function comment(string commentUrl) {
-		//check if a msgsender has buy history
-		// check if attestation exist for actually bought and delivered
-		// We now make an attestation of having actually met IRL
-		//collect deposit
-		//set attestation
-		//emit event
+	function deliveredCompleted(
+		address buyer,
+		bytes memory data
+	) public onlyOwner {
+		require(
+			customerCurShoppingStatus[buyer] == ShoppingStatus.AWAITINGDELIVERY,
+			"No buy order found"
+		);
+
+		bytes[] memory recipients = new bytes[](1);
+		recipients[0] = abi.encode(msg.sender);
+		customerCurShoppingStatus[buyer] = ShoppingStatus.DELIVERED;
+		Attestation memory a = Attestation({
+			schemaId: schemaId_Invoice,
+			linkedAttestationId: 0,
+			attestTimestamp: 0,
+			revokeTimestamp: 0,
+			attester: address(this),
+			validUntil: 0,
+			dataLocation: DataLocation.ONCHAIN,
+			revoked: false,
+			recipients: recipients,
+			data: data
+		});
+		uint64 attestationId = spInstance.attest(a, "", "", "");
+		customerHistory[msg.sender][trxIndex].attestationId = attestationId;
+		emit DeliveredEvent(buyer, attestationId);
 	}
 
-	function vote(VotesType typeOFVote) {
+	function comment(bytes memory data) public {
+		require(
+			customerCurShoppingStatus[msg.sender] != ShoppingStatus.DELIVERED,
+			"You need to use product before commenting"
+		);
+
+		bytes[] memory recipients = new bytes[](1);
+		recipients[0] = abi.encode(msg.sender);
+		Attestation memory a = Attestation({
+			schemaId: schemaId_Comment,
+			linkedAttestationId: 0,
+			attestTimestamp: 0,
+			revokeTimestamp: 0,
+			attester: address(this),
+			validUntil: 0,
+			dataLocation: DataLocation.ONCHAIN,
+			revoked: false,
+			recipients: recipients,
+			data: data // SignScan assumes this is from `abi.encode(...)`
+		});
+		uint64 attestationId = spInstance.attest(a, "", "", "");
+		buyerCommented[msg.sender] = CommentDetails(attestationId, true);
+		emit CommentEvent(msg.sender, attestationId);
+	}
+
+	function vote(VotesType typeOFVote) public {
 		// check attestation for actually bought and actually delivered
-		//if user has vote up vote and votetype is up vote, revert and vice versa
-		//if upvote, upvote + 1 and if downvote is not 0 downvote -1
-		//if downvote, downvote + 1 and if upvote is not 0, upvote -1
-	}
+		require(
+			customerHistory[msg.sender][trxIndex].attestationId > 0,
+			"You can not vote until you product has been delivered"
+		);
 
-	//PROXY ADMIN FUNCTION
+		if (customerVote[msg.sender] == VotesType.UPVOTE) {
+			if (typeOFVote == VotesType.UPVOTE) {
+				return;
+			} else {
+				upVotes.sub(1);
+				downVotes.add(1);
+			}
+		} else if (customerVote[msg.sender] == VotesType.DOWNVOTE) {
+			if (typeOFVote == VotesType.UPVOTE) {
+				upVotes.add(1);
+				downVotes.sub(1);
+			} else {
+				return;
+			}
+		} else {
+			customerVote[msg.sender] = typeOFVote;
+			if (typeOFVote == VotesType.UPVOTE) {
+				upVotes.add(1);
+				downVotes.sub(1);
+			} else {
+				downVotes.sub(1);
+				upVotes.add(1);
+			}
+		}
 
-	function confirmDelivery() {
-		//continually monitors for a delivery attestation
-		// set customer deliver status
+		emit VoteEvent(msg.sender, typeOFVote);
 	}
 
 	//GETTERS FUNCTION
 
-	function getCustomerDetails() {}
+	function getCustomerDetails(
+		address buyer,
+		uint256 index
+	) public view returns (PurchaseDetails memory) {
+		return customerHistory[buyer][index];
+	}
+
+	//ADMIN
+	function setSPInstance(address instance) external onlyOwner {
+		spInstance = ISP(instance);
+	}
+
+	function setCommentSchemaID(uint64 schemaId_) external onlyOwner {
+		schemaId_Comment = schemaId_;
+	}
+
+	function setInvoicetSchemaID(uint64 schemaId_) external onlyOwner {
+		schemaId_Invoice = schemaId_;
+	}
 }
