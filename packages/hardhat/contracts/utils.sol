@@ -8,14 +8,16 @@ enum ShoppingStatus {
 }
 
 enum VotesType {
+	NOVOTE,
 	UPVOTE,
 	DOWNVOTE
+
 }
 
 struct PurchaseDetails {
 	uint256 timeOfPurchase;
 	uint64 attestationId;
-	uint256 quantity;
+	uint64 quantity;
 	uint256 price;
 }
 
@@ -25,6 +27,10 @@ struct CommentDetails {
 }
 
 
+ struct UserData {
+    address buyerAddress;
+    uint256 transactionIndex;
+  }
 
 	event BuyEvent(
 		address indexed buyer,

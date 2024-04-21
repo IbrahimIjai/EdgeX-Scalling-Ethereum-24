@@ -6,7 +6,7 @@ import { DataLocation } from "@ethsign/sign-protocol-evm/src/models/DataLocation
 
 import { SafeMath } from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { ShoppingStatus, VotesType, PurchaseDetails, CommentDetails, BuyEvent, DeliveredEvent, CommentEvent, VoteEvent } from "./utils.sol";
+import { ShoppingStatus, VotesType, PurchaseDetails, CommentDetails, BuyEvent, DeliveredEvent, CommentEvent, VoteEvent, UserData } from "./utils.sol";
 
 //SCHEMAS
 //32 data":[{"name":"buyerAddress","type":"address"},{"name":"transactionIndex","type":"uint256"}]}
@@ -38,14 +38,18 @@ contract Product is Ownable {
 
 	//customer can only place a single order at a time
 
-	mapping(address customer => mapping(uint256 trxIndex => PurchaseDetails)) customerHistory;
+	mapping(address customer => mapping(uint64 trxIndex => PurchaseDetails))
+		public customerHistory;
 
-	mapping(address customer => ShoppingStatus) customerCurShoppingStatus;
+	mapping(uint64 trxIndex => address buyer) public buyerByTransactionIndex;
+
+	mapping(address customer => ShoppingStatus)
+		public customerCurShoppingStatus;
 
 	//keep customer vote type
-	mapping(address customer => VotesType) customerVote;
+	mapping(address customer => VotesType) public customerVote;
 	//keep customer Coment
-	mapping(address customer => CommentDetails) buyerCommented;
+	mapping(address customer => CommentDetails) public buyerCommented;
 
 	constructor(
 		uint256 _pricePerOne,
@@ -61,7 +65,7 @@ contract Product is Ownable {
 		productImageUrl = _productImageUrl;
 	}
 
-	function buy(uint256 quantity) public payable {
+	function buy(uint64 quantity) public payable {
 		require(
 			customerCurShoppingStatus[msg.sender] ==
 				ShoppingStatus.AWAITINGDELIVERY,
@@ -81,22 +85,32 @@ contract Product is Ownable {
 			pricePerOne
 		);
 
+		buyerByTransactionIndex[trxIndex] = msg.sender;
+
 		customerCurShoppingStatus[msg.sender] = ShoppingStatus.AWAITINGDELIVERY;
 		emit BuyEvent(msg.sender, price, quantity, trxIndex);
 	}
 
 	function deliveredCompleted(
-		address buyer,
-		bytes memory data
+		uint64 index,
+		address buyerAddress
 	) public onlyOwner {
+		//Get Address by index
+		require(index <= trxIndex, "transaction history does not exist");
+
+		address buyer = buyerByTransactionIndex[index];
 		require(
 			customerCurShoppingStatus[buyer] == ShoppingStatus.AWAITINGDELIVERY,
 			"No buy order found"
 		);
+		UserData memory userData = UserData(buyerAddress, index);
+		bytes memory data = abi.encode(userData);
 
 		bytes[] memory recipients = new bytes[](1);
-		recipients[0] = abi.encode(msg.sender);
+		recipients[0] = abi.encode(buyer);
+
 		customerCurShoppingStatus[buyer] = ShoppingStatus.DELIVERED;
+
 		Attestation memory a = Attestation({
 			schemaId: schemaId_Invoice,
 			linkedAttestationId: 0,
@@ -114,14 +128,17 @@ contract Product is Ownable {
 		emit DeliveredEvent(buyer, attestationId);
 	}
 
-	function comment(bytes memory data) public {
+	function comment(string memory comment) public {
 		require(
 			customerCurShoppingStatus[msg.sender] != ShoppingStatus.DELIVERED,
 			"You need to use product before commenting"
 		);
 
 		bytes[] memory recipients = new bytes[](1);
+
 		recipients[0] = abi.encode(msg.sender);
+		bytes memory data = bytes(comment);
+
 		Attestation memory a = Attestation({
 			schemaId: schemaId_Comment,
 			linkedAttestationId: 0,
@@ -178,7 +195,7 @@ contract Product is Ownable {
 
 	function getCustomerDetails(
 		address buyer,
-		uint256 index
+		uint64 index
 	) public view returns (PurchaseDetails memory) {
 		return customerHistory[buyer][index];
 	}

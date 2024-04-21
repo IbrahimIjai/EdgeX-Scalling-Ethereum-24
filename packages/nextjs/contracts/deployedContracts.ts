@@ -7,7 +7,7 @@ import { GenericContractsDeclaration } from "~~/utils/scaffold-eth/contract";
 const deployedContracts = {
   421614: {
     Product: {
-      address: "0x6707990A7Dc8184ebB5CaDaB214B2383498DA633",
+      address: "0xaf3950edA7916e2B2957f0e9E769c523CfB9B082",
       abi: [
         {
           inputs: [
@@ -163,9 +163,9 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "uint256",
+              internalType: "uint64",
               name: "quantity",
-              type: "uint256",
+              type: "uint64",
             },
           ],
           name: "buy",
@@ -176,9 +176,52 @@ const deployedContracts = {
         {
           inputs: [
             {
-              internalType: "bytes",
-              name: "data",
-              type: "bytes",
+              internalType: "uint64",
+              name: "trxIndex",
+              type: "uint64",
+            },
+          ],
+          name: "buyerByTransactionIndex",
+          outputs: [
+            {
+              internalType: "address",
+              name: "buyer",
+              type: "address",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "customer",
+              type: "address",
+            },
+          ],
+          name: "buyerCommented",
+          outputs: [
+            {
+              internalType: "uint64",
+              name: "attestationId",
+              type: "uint64",
+            },
+            {
+              internalType: "bool",
+              name: "hasCommented",
+              type: "bool",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "string",
+              name: "comment",
+              type: "string",
             },
           ],
           name: "comment",
@@ -190,13 +233,90 @@ const deployedContracts = {
           inputs: [
             {
               internalType: "address",
-              name: "buyer",
+              name: "customer",
+              type: "address",
+            },
+          ],
+          name: "customerCurShoppingStatus",
+          outputs: [
+            {
+              internalType: "enum ShoppingStatus",
+              name: "",
+              type: "uint8",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "customer",
               type: "address",
             },
             {
-              internalType: "bytes",
-              name: "data",
-              type: "bytes",
+              internalType: "uint64",
+              name: "trxIndex",
+              type: "uint64",
+            },
+          ],
+          name: "customerHistory",
+          outputs: [
+            {
+              internalType: "uint256",
+              name: "timeOfPurchase",
+              type: "uint256",
+            },
+            {
+              internalType: "uint64",
+              name: "attestationId",
+              type: "uint64",
+            },
+            {
+              internalType: "uint64",
+              name: "quantity",
+              type: "uint64",
+            },
+            {
+              internalType: "uint256",
+              name: "price",
+              type: "uint256",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "address",
+              name: "customer",
+              type: "address",
+            },
+          ],
+          name: "customerVote",
+          outputs: [
+            {
+              internalType: "enum VotesType",
+              name: "",
+              type: "uint8",
+            },
+          ],
+          stateMutability: "view",
+          type: "function",
+        },
+        {
+          inputs: [
+            {
+              internalType: "uint64",
+              name: "index",
+              type: "uint64",
+            },
+            {
+              internalType: "address",
+              name: "buyerAddress",
+              type: "address",
             },
           ],
           name: "deliveredCompleted",
@@ -238,9 +358,9 @@ const deployedContracts = {
               type: "address",
             },
             {
-              internalType: "uint256",
+              internalType: "uint64",
               name: "index",
-              type: "uint256",
+              type: "uint64",
             },
           ],
           name: "getCustomerDetails",
@@ -258,9 +378,9 @@ const deployedContracts = {
                   type: "uint64",
                 },
                 {
-                  internalType: "uint256",
+                  internalType: "uint64",
                   name: "quantity",
-                  type: "uint256",
+                  type: "uint64",
                 },
                 {
                   internalType: "uint256",
@@ -495,7 +615,7 @@ const deployedContracts = {
       inheritedFunctions: {},
     },
     YourContract: {
-      address: "0x77DA0Bd7Fa3b8E02Be16E899Ade841e7C6480504",
+      address: "0x3427ca7ea0F3cfD7df22909D20b5eA6D18E24EDa",
       abi: [
         {
           inputs: [
